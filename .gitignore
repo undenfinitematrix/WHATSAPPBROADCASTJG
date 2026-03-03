@@ -1,0 +1,69 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+*.egg-info/
+dist/
+.eggs/
+*.egg
+.pytest_cache/
+.coverage
+*.cover
+.hypothesis/
+
+# Virtual Environments
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.code-workspace
+
+# Node/Frontend
+node_modules/
+npm-debug.log
+yarn-error.log
+.next/
+out/
+dist/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+aerochat.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
