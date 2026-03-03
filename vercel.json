@@ -1,8 +1,7 @@
 {
   "version": 2,
+  "public": "build",
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/index.py" },
-    { "src": "/static/(.*)", "dest": "/build/static/$1" },
-    { "src": "/.*", "dest": "/build/index.html" }
+    { "src": "/api/(.*)", "dest": "/api/index.py" }
   ]
 }
