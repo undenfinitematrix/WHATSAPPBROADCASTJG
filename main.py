@@ -27,7 +27,13 @@ app.include_router(broadcasts_router, prefix="/api/broadcasts", tags=["Broadcast
 
 @app.on_event("startup")
 async def startup():
-    await init_db()
+    try:
+        await init_db()
+    except Exception as e:
+        # On Vercel, database may not be available (local MySQL)
+        # Initialize lazily on first request instead
+        import logging
+        logging.warning(f"Database initialization on startup failed: {e}. Database will be initialized on first request.")
 
 
 @app.on_event("shutdown")
