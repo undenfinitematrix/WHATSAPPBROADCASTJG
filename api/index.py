@@ -56,6 +56,26 @@ async def shutdown():
     except Exception as e:
         logger.warning(f"Error during shutdown: {e}")
 
+# Temporary debug endpoint — test database connectivity
+@app.get("/api/debug/db")
+async def debug_db():
+    import os
+    db_url = os.environ.get("DATABASE_URL", "NOT SET")
+    # Mask password for safety
+    masked_url = db_url
+    if "@" in db_url:
+        parts = db_url.split("@")
+        masked_url = "***@" + parts[-1]
+
+    try:
+        from broadcasts.database import get_session
+        async with get_session() as session:
+            result = await session.execute(__import__("sqlalchemy").text("SELECT 1"))
+            row = result.fetchone()
+            return {"status": "connected", "db_url": masked_url, "test_query": str(row)}
+    except Exception as e:
+        return {"status": "failed", "db_url": masked_url, "error": str(e)}
+
 logger.info("All routes registered successfully")
 
 
