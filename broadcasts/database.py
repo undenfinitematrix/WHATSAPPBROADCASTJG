@@ -69,6 +69,10 @@ elif not _db_url.startswith("postgresql+asyncpg://"):
     # If it's a placeholder, keep as-is (will fail on connect, not on import)
     pass
 
+# Ensure SSL is set for Supabase (required for external connections)
+if "supabase.co" in _db_url and "ssl" not in _db_url:
+    _db_url += "?ssl=require" if "?" not in _db_url else "&ssl=require"
+
 engine: AsyncEngine = None
 SessionLocal: async_sessionmaker = None
 
@@ -78,16 +82,19 @@ metadata = MetaData()
 async def init_db():
     """
     Initialize the async database engine and session factory.
-    Call this during FastAPI startup.
+    Called during FastAPI startup or lazily on first get_session() call.
     """
     global engine, SessionLocal
 
+    if engine is not None:
+        return  # Already initialized
+
     engine = create_async_engine(
         _db_url,
-        pool_size=20,
-        max_overflow=10,
+        pool_size=5,
+        max_overflow=5,
         pool_pre_ping=True,      # Verify connections before use
-        pool_recycle=3600,        # Recycle connections after 1 hour
+        pool_recycle=300,         # Recycle connections every 5 min (serverless-friendly)
         echo=settings.LOG_LEVEL == "DEBUG",
     )
 
@@ -111,12 +118,16 @@ async def close_db():
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Async context manager for database sessions.
+    Auto-initializes database if startup event didn't fire (Vercel serverless).
 
     Usage:
         async with get_session() as session:
             result = await session.execute(query)
             await session.commit()
     """
+    if SessionLocal is None:
+        await init_db()
+
     async with SessionLocal() as session:
         try:
             yield session
