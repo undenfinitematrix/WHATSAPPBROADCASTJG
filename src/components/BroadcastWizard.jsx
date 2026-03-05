@@ -165,14 +165,17 @@ const AUDIENCE_OPTIONS = [
   { id: 'csv', icon: <Icons.Upload />, iconClass: 'info', title: 'Upload CSV', desc: 'Upload a list of phone numbers in international format (+country code)', count: null },
 ];
 
-const StepChooseAudience = ({ data, setData, segments }) => (
+const StepChooseAudience = ({ data, setData, segments, csvUploadState, onCSVUpload, onCSVRemove, csvInputRef }) => (
   <>
     <div className="audience-options">
       {AUDIENCE_OPTIONS.map((o) => (
         <button
           key={o.id}
           className={`audience-option ${data.audience === o.id ? 'audience-option--selected' : ''}`}
-          onClick={() => setData({ ...data, audience: o.id })}
+          onClick={() => {
+            setData({ ...data, audience: o.id });
+            if (o.id !== 'csv' && onCSVRemove) onCSVRemove();
+          }}
         >
           <div className={`audience-option__icon audience-option__icon--${o.iconClass}`}>
             {o.icon}
@@ -205,13 +208,90 @@ const StepChooseAudience = ({ data, setData, segments }) => (
     )}
 
     {data.audience === 'csv' && (
-      <div className="csv-upload">
-        <div style={{ color: 'var(--color-gray-400)', marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
-          <Icons.File />
-        </div>
-        <div className="csv-upload__title">Drop a CSV file here or click to browse</div>
-        <div className="csv-upload__desc">CSV must contain a column with phone numbers in international format (+country code)</div>
-      </div>
+      <>
+        <input
+          type="file"
+          accept=".csv"
+          ref={csvInputRef}
+          style={{ display: 'none' }}
+          onChange={(e) => onCSVUpload(e.target.files[0])}
+        />
+
+        {/* State: No file uploaded yet */}
+        {!csvUploadState.uploading && !csvUploadState.result && !csvUploadState.error && (
+          <div className="csv-upload" onClick={() => csvInputRef.current?.click()} style={{ cursor: 'pointer' }}>
+            <div style={{ color: 'var(--color-gray-400)', marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+              <Icons.File />
+            </div>
+            <div className="csv-upload__title">Click to browse and upload a CSV file</div>
+            <div className="csv-upload__desc">CSV must contain a column with phone numbers in international format (+country code)</div>
+          </div>
+        )}
+
+        {/* State: Uploading */}
+        {csvUploadState.uploading && (
+          <div className="csv-upload" style={{ pointerEvents: 'none', opacity: 0.7 }}>
+            <div style={{ color: 'var(--color-gray-400)', marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+              <Icons.File />
+            </div>
+            <div className="csv-upload__title">Uploading {csvUploadState.fileName}...</div>
+            <div className="csv-upload__desc">Validating phone numbers, please wait</div>
+          </div>
+        )}
+
+        {/* State: Upload success */}
+        {csvUploadState.result && (
+          <div className="csv-upload" style={{ borderStyle: 'solid', borderColor: 'var(--color-accent, #e91e8c)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icons.File />
+                <span style={{ fontWeight: 600 }}>{csvUploadState.fileName}</span>
+              </div>
+              <button
+                type="button"
+                onClick={onCSVRemove}
+                style={{ background: 'none', border: 'none', color: 'var(--color-gray-400)', cursor: 'pointer', fontSize: 14, textDecoration: 'underline' }}
+              >
+                Remove
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 8 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700 }}>{csvUploadState.result.valid_phones}</div>
+                <div className="csv-upload__desc">Valid</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: csvUploadState.result.invalid_phones > 0 ? '#e67e22' : 'var(--color-gray-400)' }}>
+                  {csvUploadState.result.invalid_phones}
+                </div>
+                <div className="csv-upload__desc">Invalid</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-gray-400)' }}>{csvUploadState.result.duplicate_phones}</div>
+                <div className="csv-upload__desc">Duplicates</div>
+              </div>
+            </div>
+            {csvUploadState.result.errors.length > 0 && (
+              <div style={{ marginTop: 8, textAlign: 'left', fontSize: 13, color: '#e67e22' }}>
+                {csvUploadState.result.errors.map((err, i) => (
+                  <div key={i}>{err}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* State: Upload error */}
+        {csvUploadState.error && !csvUploadState.uploading && (
+          <div className="csv-upload" onClick={() => csvInputRef.current?.click()} style={{ cursor: 'pointer', borderColor: '#e67e22' }}>
+            <div style={{ color: '#e67e22', marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+              <Icons.Warning />
+            </div>
+            <div className="csv-upload__title" style={{ color: '#e67e22' }}>{csvUploadState.error}</div>
+            <div className="csv-upload__desc">Click to try again</div>
+          </div>
+        )}
+      </>
     )}
 
     <Callout type="warning">
@@ -286,14 +366,16 @@ const StepSchedule = ({ data, setData, timezones }) => (
 // ============================================
 // Step 4: Review & Send
 // ============================================
-const StepReview = ({ data, templates, segments }) => {
+const StepReview = ({ data, templates, segments, csvUploadState }) => {
   const tpl = templates.find((tp) => tp.id === data.template);
   const audLabel =
     data.audience === 'all'
       ? 'All Subscribers · 2,431 contacts'
       : data.audience === 'segment'
         ? `By Segment · ${segments.find((s) => s.id === data.segment)?.label || 'None selected'}`
-        : 'Upload CSV';
+        : data.audience === 'csv' && csvUploadState?.result
+          ? `Upload CSV · ${csvUploadState.result.valid_phones} valid contacts`
+          : 'Upload CSV';
   const schedLabel =
     data.scheduleType === 'now'
       ? 'Send immediately'
@@ -408,6 +490,10 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
     scheduleTime: '',
     timezone: defaultTimezone || timezones[0] || '',
   });
+  const [csvUploadState, setCsvUploadState] = useState({
+    uploading: false, result: null, error: null, fileName: null,
+  });
+  const csvInputRef = useRef(null);
 
   const handleSaveDraft = async () => {
     // save current data state as draft via API
@@ -425,6 +511,7 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
         timezone: data.timezone,
         audience_type: data.audience,
         segment_id: data.segment || null,
+        csv_file_id: csvUploadState.result?.file_id || null,
       };
       console.log('sending payload', payload);
       const result = await api.createBroadcast(payload);
@@ -433,6 +520,26 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
       console.error('failed to save draft', err, 'detail:', err.detail);
     }
     onNavigate('list');
+  };
+
+  const handleCSVUpload = async (file) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setCsvUploadState({ uploading: false, result: null, error: 'Please select a CSV file.', fileName: null });
+      return;
+    }
+    setCsvUploadState({ uploading: true, result: null, error: null, fileName: file.name });
+    try {
+      const result = await api.uploadCSV(file);
+      setCsvUploadState({ uploading: false, result, error: null, fileName: file.name });
+    } catch (err) {
+      setCsvUploadState({ uploading: false, result: null, error: err.detail || err.message || 'Failed to upload CSV.', fileName: file.name });
+    }
+  };
+
+  const handleCSVRemove = () => {
+    setCsvUploadState({ uploading: false, result: null, error: null, fileName: null });
+    if (csvInputRef.current) csvInputRef.current.value = '';
   };
 
   const handleSubmit = () => {
@@ -491,9 +598,9 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
             <div className="wizard-card__desc">{STEP_DESCRIPTIONS[step]}</div>
 
             {step === 1 && <StepSelectTemplate data={data} setData={setData} templates={templates} />}
-            {step === 2 && <StepChooseAudience data={data} setData={setData} segments={segments} />}
+            {step === 2 && <StepChooseAudience data={data} setData={setData} segments={segments} csvUploadState={csvUploadState} onCSVUpload={handleCSVUpload} onCSVRemove={handleCSVRemove} csvInputRef={csvInputRef} />}
             {step === 3 && <StepSchedule data={data} setData={setData} timezones={timezones} />}
-            {step === 4 && <StepReview data={data} templates={templates} segments={segments} />}
+            {step === 4 && <StepReview data={data} templates={templates} segments={segments} csvUploadState={csvUploadState} />}
           </div>
 
           {/* Footer navigation */}
