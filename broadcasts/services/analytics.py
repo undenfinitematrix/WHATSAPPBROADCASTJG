@@ -153,7 +153,7 @@ class AnalyticsService:
 
     async def get_list_stats(self) -> BroadcastStats:
         """Compute aggregate stats with month-over-month comparison."""
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
 
         current_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if now.month == 12:

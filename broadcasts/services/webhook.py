@@ -227,7 +227,7 @@ class WebhookService:
         if not messages:
             return
 
-        window_start = datetime.now(timezone.utc) - timedelta(
+        window_start = datetime.utcnow() - timedelta(
             hours=settings.REPLY_ATTRIBUTION_WINDOW_HOURS
         )
 

@@ -469,7 +469,7 @@ class BroadcastService:
     async def create_broadcast(self, data: BroadcastCreate) -> BroadcastSummary:
         """Create a new broadcast as a draft."""
         broadcast_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
 
         # Resolve audience label
         audience_label = "All Subscribers"
@@ -521,7 +521,7 @@ class BroadcastService:
 
     async def update_broadcast(self, broadcast_id: str, data: BroadcastUpdate) -> BroadcastSummary:
         """Update a draft or scheduled broadcast."""
-        update_values = {"updated_at": datetime.now(timezone.utc)}
+        update_values = {"updated_at": datetime.utcnow()}
 
         # Only include non-None fields
         for field in ["campaign_name", "template_name", "template_language",
@@ -579,7 +579,7 @@ class BroadcastService:
             await session.execute(
                 update(broadcasts_table)
                 .where(broadcasts_table.c.id == broadcast_id)
-                .values(status="cancelled", updated_at=datetime.now(timezone.utc))
+                .values(status="cancelled", updated_at=datetime.utcnow())
             )
             await session.commit()
 
@@ -671,7 +671,7 @@ class BroadcastService:
                 .values(
                     status="scheduled",
                     scheduled_at=scheduled_at,
-                    updated_at=datetime.now(timezone.utc),
+                    updated_at=datetime.utcnow(),
                 )
             )
             await session.commit()
@@ -728,7 +728,7 @@ class BroadcastService:
 
         final_status = BroadcastStatus.SENT if total_sent > 0 else BroadcastStatus.FAILED
         await self._update_status(broadcast_id, final_status)
-        await self._update_sent_at(broadcast_id, datetime.now(timezone.utc))
+        await self._update_sent_at(broadcast_id, datetime.utcnow())
 
         logger.info(f"Broadcast {broadcast_id}: {total_sent} sent, {total_failed} failed, {duration:.1f}s")
 
@@ -765,7 +765,7 @@ class BroadcastService:
                     contact_id=contact.id, phone=contact.phone,
                     meta_message_id=meta_message_id,
                     status=RecipientStatus.SENT,
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.utcnow(),
                 )
 
             except MessageSendError as e:
@@ -787,7 +787,7 @@ class BroadcastService:
             contact_id=contact.id, phone=contact.phone,
             meta_message_id=None, status=RecipientStatus.FAILED,
             error_code=last_error_code, error_message=last_error_message,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.utcnow(),
         )
 
     def _build_body_params(self, broadcast: BroadcastDetail, contact: Contact) -> List[str]:
@@ -811,7 +811,7 @@ class BroadcastService:
             await session.execute(
                 update(broadcasts_table)
                 .where(broadcasts_table.c.id == broadcast_id)
-                .values(status=status.value, updated_at=datetime.now(timezone.utc))
+                .values(status=status.value, updated_at=datetime.utcnow())
             )
             await session.commit()
 
@@ -820,7 +820,7 @@ class BroadcastService:
             await session.execute(
                 update(broadcasts_table)
                 .where(broadcasts_table.c.id == broadcast_id)
-                .values(sent_at=sent_at, updated_at=datetime.now(timezone.utc))
+                .values(sent_at=sent_at, updated_at=datetime.utcnow())
             )
             await session.commit()
 
@@ -829,7 +829,7 @@ class BroadcastService:
             await session.execute(
                 update(broadcasts_table)
                 .where(broadcasts_table.c.id == broadcast_id)
-                .values(recipient_count=count, updated_at=datetime.now(timezone.utc))
+                .values(recipient_count=count, updated_at=datetime.utcnow())
             )
             await session.commit()
 
