@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 
 from sqlalchemy import select, insert, update, delete, func, and_, or_, text
-from sqlalchemy.dialects.mysql import insert as mysql_insert
+
 
 from ..config import settings
 from ..database import (

@@ -46,7 +46,7 @@ class BroadcastSettings(BaseSettings):
 
     # Async connection URL
     # e.g. "postgresql+asyncpg://user:pass@localhost:5432/aerochat"
-    DATABASE_URL: str = "mysql+aiomysql://root:@localhost:3306/aerochat"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/postgres"
 
     # Table names — adjust to match your schema
     DB_TABLE_BROADCASTS: str = "broadcasts"

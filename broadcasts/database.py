@@ -61,11 +61,11 @@ from .config import settings
 # Engine & Session
 # =========================================
 
-# Convert mysql:// to mysql+aiomysql:// if needed
+# Convert postgresql:// to postgresql+asyncpg:// if needed
 _db_url = settings.DATABASE_URL
-if _db_url.startswith("mysql://"):
-    _db_url = _db_url.replace("mysql://", "mysql+aiomysql://", 1)
-elif not _db_url.startswith("mysql+aiomysql://"):
+if _db_url.startswith("postgresql://"):
+    _db_url = _db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif not _db_url.startswith("postgresql+asyncpg://"):
     # If it's a placeholder, keep as-is (will fail on connect, not on import)
     pass
 

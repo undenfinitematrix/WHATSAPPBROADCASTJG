@@ -188,6 +188,9 @@ async def create_broadcast(
     """
     Create a new broadcast (saved as draft).
     """
+    # log the validated payload so we know what the client actually sent
+    # use INFO level so it shows up with default logging configuration
+    logger.info(f"create_broadcast payload: {data.dict()}")
     try:
         broadcast = await broadcast_svc.create_broadcast(data)
         return broadcast

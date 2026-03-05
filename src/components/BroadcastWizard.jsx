@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
+// API helper – the front‑end service layer that wraps our FastAPI backend
+import { broadcastsApi as api } from '../api-client';
+
 // CSS import (production):
 // import './styles/broadcasts.css';
 
@@ -406,8 +409,29 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
     timezone: defaultTimezone || timezones[0] || '',
   });
 
-  const handleSaveDraft = () => {
-    // In production: save current data state as draft via API
+  const handleSaveDraft = async () => {
+    // save current data state as draft via API
+    try {
+      // convert state to API payload shape if needed
+      const payload = {
+        campaign_name: data.campaignName,
+        template_name: data.template,
+        template_language: 'en',
+        schedule_type: data.scheduleType,
+        scheduled_at:
+          data.scheduleType === 'scheduled'
+            ? `${data.scheduleDate}T${data.scheduleTime}`
+            : null,
+        timezone: data.timezone,
+        audience_type: data.audience,
+        segment_id: data.segment || null,
+      };
+      console.log('sending payload', payload);
+      const result = await api.createBroadcast(payload);
+      console.log('draft saved', result);
+    } catch (err) {
+      console.error('failed to save draft', err);
+    }
     onNavigate('list');
   };
 
