@@ -60,6 +60,7 @@ async def shutdown():
 @app.get("/api/debug/db")
 async def debug_db():
     import os
+    from sqlalchemy import text as sa_text
     db_url = os.environ.get("DATABASE_URL", "NOT SET")
     # Mask password for safety
     masked_url = db_url
@@ -70,7 +71,7 @@ async def debug_db():
     try:
         from broadcasts.database import get_session
         async with get_session() as session:
-            result = await session.execute(__import__("sqlalchemy").text("SELECT 1"))
+            result = await session.execute(sa_text("SELECT 1"))
             row = result.fetchone()
             return {"status": "connected", "db_url": masked_url, "test_query": str(row)}
     except Exception as e:
