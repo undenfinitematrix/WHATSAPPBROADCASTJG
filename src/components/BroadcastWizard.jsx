@@ -430,7 +430,7 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
       const result = await api.createBroadcast(payload);
       console.log('draft saved', result);
     } catch (err) {
-      console.error('failed to save draft', err);
+      console.error('failed to save draft', err, 'detail:', err.detail);
     }
     onNavigate('list');
   };
