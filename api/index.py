@@ -17,23 +17,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Health check (no database required)
-@app.get("/api/health")
-async def health():
-    return {"status": "ok", "message": "API is running on Vercel"}
-
 # Import and mount the full broadcasts router (all CRUD + webhook endpoints)
+_import_error = None
 try:
     from broadcasts.router import router as broadcasts_router
     from broadcasts.database import init_db, close_db
     app.include_router(broadcasts_router, prefix="/api/broadcasts", tags=["Broadcasts"])
     logger.info("Broadcasts router mounted successfully")
 except Exception as e:
+    _import_error = str(e)
     logger.error(f"Failed to import broadcasts module: {e}")
-    raise
+
+# Health check — always available, shows import errors for debugging
+@app.get("/api/health")
+async def health():
+    if _import_error:
+        return {"status": "degraded", "message": "API running but broadcasts module failed to load", "error": _import_error}
+    return {"status": "ok", "message": "API is running on Vercel"}
 
 @app.on_event("startup")
 async def startup():
+    if _import_error:
+        logger.warning(f"Skipping DB init — broadcasts module failed: {_import_error}")
+        return
     try:
         logger.info("Starting up... initializing database")
         await init_db()
@@ -43,6 +49,8 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
+    if _import_error:
+        return
     try:
         await close_db()
     except Exception as e:
