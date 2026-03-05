@@ -95,6 +95,8 @@ async def init_db():
         max_overflow=5,
         pool_pre_ping=True,      # Verify connections before use
         pool_recycle=300,         # Recycle connections every 5 min (serverless-friendly)
+        # Disable prepared statement caching — required for Supabase pgbouncer (transaction mode)
+        connect_args={"prepared_statement_cache_size": 0, "statement_cache_size": 0},
         echo=settings.LOG_LEVEL == "DEBUG",
     )
 
