@@ -51,6 +51,22 @@ const filters = [
 ];
 
 // ============================================
+// Hardcoded dashboard rows (5 Sent + 5 Scheduled)
+// ============================================
+const hardcodedBroadcasts = [
+  { id: 'hc-1', campaign_name: "Valentine's Day Sale", template_name: 'valentines_promo_2025', status: 'sent', audience_label: 'All Subscribers', delivered_count: 2341, read_count: 1687, sent_at: '2026-02-12T10:00:00' },
+  { id: 'hc-2', campaign_name: 'Abandoned Cart Reminder', template_name: 'cart_reminder_v2', status: 'sent', audience_label: 'Cart Abandoners', delivered_count: 847, read_count: 612, sent_at: '2026-02-08T14:30:00' },
+  { id: 'hc-3', campaign_name: 'Loyalty Points Update', template_name: 'loyalty_update_q1', status: 'sent', audience_label: 'Loyalty Members', delivered_count: 1203, read_count: 891, sent_at: '2026-02-01T11:00:00' },
+  { id: 'hc-4', campaign_name: 'Winter Clearance Blast', template_name: 'winter_clearance_2026', status: 'sent', audience_label: 'All Subscribers', delivered_count: 3102, read_count: 2280, sent_at: '2026-01-20T09:00:00' },
+  { id: 'hc-5', campaign_name: 'Re-engagement Campaign', template_name: 'win_back_inactive', status: 'sent', audience_label: 'Inactive 30d', delivered_count: 564, read_count: 389, sent_at: '2026-01-15T13:00:00' },
+  { id: 'hc-6', campaign_name: 'New Arrivals — Spring Collection', template_name: 'new_arrivals_notify', status: 'scheduled', audience_label: 'VIP Customers', delivered_count: null, read_count: null, sent_at: '2026-03-10T09:00:00' },
+  { id: 'hc-7', campaign_name: "Women's Day Offer", template_name: 'womens_day_promo', status: 'scheduled', audience_label: 'All Subscribers', delivered_count: null, read_count: null, sent_at: '2026-03-08T08:00:00' },
+  { id: 'hc-8', campaign_name: 'Flash Sale Weekend', template_name: 'flash_sale_announce', status: 'scheduled', audience_label: 'Cart Abandoners', delivered_count: null, read_count: null, sent_at: '2026-03-15T10:00:00' },
+  { id: 'hc-9', campaign_name: 'Membership Renewal Notice', template_name: 'membership_renew_v1', status: 'scheduled', audience_label: 'Loyalty Members', delivered_count: null, read_count: null, sent_at: '2026-03-20T11:00:00' },
+  { id: 'hc-10', campaign_name: 'Easter Early Access', template_name: 'easter_early_bird', status: 'scheduled', audience_label: 'VIP Customers', delivered_count: null, read_count: null, sent_at: '2026-04-01T09:00:00' },
+];
+
+// ============================================
 // Helpers
 // ============================================
 
@@ -322,9 +338,23 @@ const BroadcastsList = ({ onNavigate }) => {
 
   const { data, loading, error } = useBroadcasts(apiParams);
 
-  const broadcasts = data?.broadcasts || [];
-  const total = data?.total || 0;
+  const apiBroadcasts = data?.broadcasts || [];
+  const apiTotal = data?.total || 0;
   const totalPages = data?.total_pages || 1;
+
+  // Filter hardcoded rows by active filter and search (same logic as API)
+  const filteredHardcoded = hardcodedBroadcasts.filter(b => {
+    if (activeFilter !== 'all' && b.status !== activeFilter) return false;
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      if (!b.campaign_name.toLowerCase().includes(q) && !b.template_name.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Hardcoded rows first, then API rows
+  const broadcasts = [...filteredHardcoded, ...apiBroadcasts];
+  const total = filteredHardcoded.length + apiTotal;
   const hasBroadcasts = !loading && (total > 0 || activeFilter !== 'all' || debouncedSearch);
 
   const handleRowClick = (broadcast) => {
