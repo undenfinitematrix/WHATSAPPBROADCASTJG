@@ -73,7 +73,12 @@ function App() {
 
   const handleNavigate = (newView, data) => {
     if (newView === 'detail' && data) {
-      setSelectedBroadcast({ ...sampleBroadcastDetail, name: data.name || sampleBroadcastDetail.name });
+      // Pass the real broadcast data from the API (includes id, campaign_name, etc.)
+      setSelectedBroadcast({
+        ...sampleBroadcastDetail,
+        name: data.campaign_name || data.name || sampleBroadcastDetail.name,
+        broadcastId: data.id,
+      });
     }
     setView(newView);
   };

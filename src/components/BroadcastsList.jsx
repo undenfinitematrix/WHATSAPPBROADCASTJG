@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useBroadcasts, useBroadcastStats } from '../api-client';
 
 // CSS import (production):
 // import './styles/broadcasts.css';
@@ -42,23 +43,39 @@ const Icons = {
   ),
 };
 
-// ============================================
-// Sample Data
-// ============================================
-const sampleBroadcasts = [
-  { id: 1, name: "Valentine's Day Sale", template: 'valentines_promo_2025', status: 'sent', audience: 'All Subscribers', delivered: 2341, deliveredPct: 96.2, read: 1687, readPct: 72.1, sentAt: 'Feb 12, 10:00 AM' },
-  { id: 2, name: 'New Arrivals — Spring Collection', template: 'new_arrivals_notify', status: 'scheduled', audience: 'VIP Customers', delivered: null, deliveredPct: null, read: null, readPct: null, sentAt: 'Feb 25, 9:00 AM' },
-  { id: 3, name: 'Abandoned Cart Reminder', template: 'cart_reminder_v2', status: 'sent', audience: 'Cart Abandoners', delivered: 847, deliveredPct: 93.8, read: 612, readPct: 72.3, sentAt: 'Feb 8, 2:30 PM' },
-  { id: 4, name: 'Weekend Flash Sale', template: 'flash_sale_announce', status: 'draft', audience: null, delivered: null, deliveredPct: null, read: null, readPct: null, sentAt: null },
-  { id: 5, name: 'Loyalty Points Update', template: 'loyalty_update_q1', status: 'sent', audience: 'Loyalty Members', delivered: 1203, deliveredPct: 95.1, read: 891, readPct: 74.1, sentAt: 'Feb 1, 11:00 AM' },
-];
-
 const filters = [
   { id: 'all', label: 'All' },
   { id: 'sent', label: 'Sent' },
   { id: 'scheduled', label: 'Scheduled' },
   { id: 'draft', label: 'Draft' },
 ];
+
+// ============================================
+// Helpers
+// ============================================
+
+/** Format an ISO date string to "Feb 12, 10:00 AM" */
+function formatDate(isoString) {
+  if (!isoString) return null;
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ', ' +
+      d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch {
+    return isoString;
+  }
+}
+
+/** Debounce hook — delays value updates by `delay` ms */
+function useDebounce(value, delay) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 // ============================================
 // Shared hook: click outside
@@ -232,35 +249,56 @@ const EmptyState = ({ onCreateBroadcast }) => (
 // ============================================
 // Stats Row
 // ============================================
-const StatsRow = () => (
-  <div className="stats-row">
-    <div className="stat-card">
-      <div className="stat-card__label">Total Sent</div>
-      <div className="stat-card__value">12,847</div>
-      <span className="stat-card__change stat-card__change--up">↑ 23% vs last month</span>
-    </div>
-    <div className="stat-card">
-      <div className="stat-card__label">Avg. Delivery Rate</div>
-      <div className="stat-card__value">94.2%</div>
-      <span className="stat-card__change stat-card__change--up">↑ 1.8%</span>
-    </div>
-    <div className="stat-card">
-      <div className="stat-card__label">
-        Avg. Read Rate
-        <span className="stat-card__info-icon" title="May undercount — users can disable read receipts in WhatsApp">
-          <Icons.InfoSmall />
-        </span>
+const StatsRow = () => {
+  const { data: stats } = useBroadcastStats();
+
+  const fmtPct = (v) => v != null ? `${v}%` : '—';
+  const fmtChange = (v) => {
+    if (v == null) return null;
+    const dir = v >= 0 ? 'up' : 'down';
+    const arrow = v >= 0 ? '↑' : '↓';
+    return { dir, text: `${arrow} ${Math.abs(v)}%` };
+  };
+
+  const totalSent = stats?.total_sent ?? 0;
+  const totalChange = fmtChange(stats?.total_sent_change_pct);
+  const deliveryRate = fmtPct(stats?.avg_delivery_rate);
+  const deliveryChange = fmtChange(stats?.avg_delivery_rate_change);
+  const readRate = fmtPct(stats?.avg_read_rate);
+  const readChange = fmtChange(stats?.avg_read_rate_change);
+  const replyRate = fmtPct(stats?.avg_reply_rate);
+  const replyChange = fmtChange(stats?.avg_reply_rate_change);
+
+  return (
+    <div className="stats-row">
+      <div className="stat-card">
+        <div className="stat-card__label">Total Sent</div>
+        <div className="stat-card__value">{totalSent.toLocaleString()}</div>
+        {totalChange && <span className={`stat-card__change stat-card__change--${totalChange.dir}`}>{totalChange.text} vs last month</span>}
       </div>
-      <div className="stat-card__value">67.8%</div>
-      <span className="stat-card__change stat-card__change--down">↓ 2.1%</span>
+      <div className="stat-card">
+        <div className="stat-card__label">Avg. Delivery Rate</div>
+        <div className="stat-card__value">{deliveryRate}</div>
+        {deliveryChange && <span className={`stat-card__change stat-card__change--${deliveryChange.dir}`}>{deliveryChange.text}</span>}
+      </div>
+      <div className="stat-card">
+        <div className="stat-card__label">
+          Avg. Read Rate
+          <span className="stat-card__info-icon" title="May undercount — users can disable read receipts in WhatsApp">
+            <Icons.InfoSmall />
+          </span>
+        </div>
+        <div className="stat-card__value">{readRate}</div>
+        {readChange && <span className={`stat-card__change stat-card__change--${readChange.dir}`}>{readChange.text}</span>}
+      </div>
+      <div className="stat-card">
+        <div className="stat-card__label">Avg. Reply Rate</div>
+        <div className="stat-card__value">{replyRate}</div>
+        {replyChange && <span className={`stat-card__change stat-card__change--${replyChange.dir}`}>{replyChange.text}</span>}
+      </div>
     </div>
-    <div className="stat-card">
-      <div className="stat-card__label">Avg. Reply Rate</div>
-      <div className="stat-card__value">8.4%</div>
-      <span className="stat-card__change stat-card__change--up">↑ 0.6%</span>
-    </div>
-  </div>
-);
+  );
+};
 
 // ============================================
 // Main Component
@@ -287,23 +325,40 @@ const BroadcastsList = ({ onNavigate }) => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [page, setPage] = useState(1);
 
-  // In production, broadcasts come from props/context/API
-  const broadcasts = sampleBroadcasts;
-  const hasBroadcasts = broadcasts.length > 0;
+  // Debounce search so we don't hit the API on every keystroke
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  // Filter + search
-  const filtered = broadcasts.filter(b => {
-    if (activeFilter !== 'all' && b.status !== activeFilter) return false;
-    if (searchQuery && !b.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  // Reset to page 1 when filter or search changes
+  useEffect(() => { setPage(1); }, [activeFilter, debouncedSearch, rowsPerPage]);
+
+  // Fetch broadcasts from Supabase via API
+  const apiParams = useMemo(() => ({
+    status: activeFilter,
+    search: debouncedSearch,
+    page,
+    pageSize: rowsPerPage,
+  }), [activeFilter, debouncedSearch, page, rowsPerPage]);
+
+  const { data, loading, error } = useBroadcasts(apiParams);
+
+  const broadcasts = data?.broadcasts || [];
+  const total = data?.total || 0;
+  const totalPages = data?.total_pages || 1;
+  const hasBroadcasts = !loading && (total > 0 || activeFilter !== 'all' || debouncedSearch);
 
   const handleRowClick = (broadcast) => {
     if (broadcast.status === 'sent') {
       onNavigate('detail', broadcast);
     }
   };
+
+  // Build page buttons
+  const pageButtons = [];
+  for (let i = 1; i <= totalPages && i <= 5; i++) {
+    pageButtons.push(i);
+  }
 
   return (
     <div id="page-broadcasts">
@@ -313,7 +368,7 @@ const BroadcastsList = ({ onNavigate }) => {
       )}
 
       {/* Empty State or Content */}
-      {!hasBroadcasts ? (
+      {!loading && !hasBroadcasts && !error ? (
         <EmptyState onCreateBroadcast={() => onNavigate('wizard')} />
       ) : (
         <>
@@ -349,52 +404,76 @@ const BroadcastsList = ({ onNavigate }) => {
               </button>
             </div>
 
-            {/* Table */}
-            <table>
-              <thead>
-                <tr>
-                  <th>Campaign</th>
-                  <th>Template</th>
-                  <th>Status</th>
-                  <th>Audience</th>
-                  <th className="th--right">Delivered</th>
-                  <th className="th--right">Read</th>
-                  <th>Sent At</th>
-                  <th style={{ width: 48 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(b => (
-                  <tr key={b.id} onClick={() => handleRowClick(b)}>
-                    <td><div className="broadcast-name">{b.name}</div></td>
-                    <td><span className="broadcast-template">{b.template}</span></td>
-                    <td><StatusPill status={b.status} /></td>
-                    <td className="cell--muted">{b.audience || '—'}</td>
-                    <MetricCell value={b.delivered} pct={b.deliveredPct} />
-                    <MetricCell value={b.read} pct={b.readPct} />
-                    <td className="cell--muted">{b.sentAt || (b.status === 'draft' ? 'Draft saved' : '—')}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <ActionMenu status={b.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* Loading / Error states */}
+            {loading && (
+              <div style={{ padding: '40px 24px', textAlign: 'center', color: '#6b7280' }}>
+                Loading broadcasts...
+              </div>
+            )}
 
-            {/* Pagination Footer */}
-            <div className="table-footer">
-              <div className="table-footer__left">
-                <span>Showing {filtered.length} of {broadcasts.length} broadcasts</span>
-                <span className="table-footer__rows-label">Rows:</span>
-                <RowsDropdown value={rowsPerPage} onChange={setRowsPerPage} />
+            {error && (
+              <div style={{ padding: '40px 24px', textAlign: 'center', color: '#ef4444' }}>
+                Failed to load broadcasts: {error}
               </div>
-              <div className="table-footer__pagination">
-                <button className="page-btn"><Icons.ChevronLeft /></button>
-                <button className="page-btn page-btn--active">1</button>
-                <button className="page-btn">2</button>
-                <button className="page-btn"><Icons.ChevronRight /></button>
-              </div>
-            </div>
+            )}
+
+            {/* Table */}
+            {!loading && !error && (
+              <>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Campaign</th>
+                      <th>Template</th>
+                      <th>Status</th>
+                      <th>Audience</th>
+                      <th className="th--right">Delivered</th>
+                      <th className="th--right">Read</th>
+                      <th>Sent At</th>
+                      <th style={{ width: 48 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {broadcasts.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af' }}>
+                          No broadcasts found
+                        </td>
+                      </tr>
+                    ) : broadcasts.map(b => (
+                      <tr key={b.id} onClick={() => handleRowClick(b)}>
+                        <td><div className="broadcast-name">{b.campaign_name}</div></td>
+                        <td><span className="broadcast-template">{b.template_name || '—'}</span></td>
+                        <td><StatusPill status={b.status} /></td>
+                        <td className="cell--muted">{b.audience_label || '—'}</td>
+                        <MetricCell value={b.delivered_count || null} pct={b.delivered_pct} />
+                        <MetricCell value={b.read_count || null} pct={b.read_pct} />
+                        <td className="cell--muted">{formatDate(b.sent_at) || (b.status === 'draft' ? 'Draft saved' : '—')}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <ActionMenu status={b.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Pagination Footer */}
+                <div className="table-footer">
+                  <div className="table-footer__left">
+                    <span>Showing {broadcasts.length} of {total} broadcasts</span>
+                    <span className="table-footer__rows-label">Rows:</span>
+                    <RowsDropdown value={rowsPerPage} onChange={setRowsPerPage} />
+                  </div>
+                  <div className="table-footer__pagination">
+                    <button className="page-btn" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}><Icons.ChevronLeft /></button>
+                    {pageButtons.map(p => (
+                      <button key={p} className={`page-btn ${page === p ? 'page-btn--active' : ''}`} onClick={() => setPage(p)}>{p}</button>
+                    ))}
+                    <button className="page-btn" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}><Icons.ChevronRight /></button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}

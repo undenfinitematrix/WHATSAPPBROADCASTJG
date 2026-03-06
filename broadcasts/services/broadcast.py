@@ -353,7 +353,12 @@ class BroadcastService:
             if status:
                 where_clauses.append(broadcasts_table.c.status == status.value)
             if search:
-                where_clauses.append(broadcasts_table.c.campaign_name.ilike(f"%{search}%"))
+                where_clauses.append(
+                    or_(
+                        broadcasts_table.c.campaign_name.ilike(f"%{search}%"),
+                        broadcasts_table.c.template_name.ilike(f"%{search}%"),
+                    )
+                )
 
             where = and_(*where_clauses) if where_clauses else True
 
