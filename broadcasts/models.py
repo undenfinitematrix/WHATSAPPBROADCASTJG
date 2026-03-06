@@ -130,6 +130,7 @@ class BroadcastCreate(BaseModel):
     template_name: str
     template_language: str = "en"
     audience_type: AudienceType
+    audience_label: Optional[str] = None
     segment_id: Optional[str] = None
     csv_file_id: Optional[str] = None
     csv_contacts: Optional[list[str]] = None

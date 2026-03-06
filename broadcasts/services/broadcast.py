@@ -476,17 +476,21 @@ class BroadcastService:
         broadcast_id = str(uuid.uuid4())
         now = datetime.utcnow()
 
-        # Resolve audience label
-        audience_label = "All Subscribers"
-        if data.audience_type == AudienceType.SEGMENT and data.segment_id:
-            async with get_session() as session:
-                seg_query = text(f"SELECT name FROM {SEGMENTS_TABLE} WHERE id = :sid")
-                seg_result = await session.execute(seg_query, {"sid": data.segment_id})
-                seg_row = seg_result.fetchone()
-                if seg_row:
-                    audience_label = seg_row.name
-        elif data.audience_type == AudienceType.CSV_UPLOAD:
-            audience_label = "CSV Upload"
+        # Resolve audience label — prefer the label sent by the frontend,
+        # fall back to a DB lookup, then to sensible defaults.
+        audience_label = data.audience_label  # frontend may pass the label directly
+        if not audience_label:
+            if data.audience_type == AudienceType.SEGMENT and data.segment_id:
+                async with get_session() as session:
+                    seg_query = text(f"SELECT name FROM {SEGMENTS_TABLE} WHERE id = :sid")
+                    seg_result = await session.execute(seg_query, {"sid": data.segment_id})
+                    seg_row = seg_result.fetchone()
+                    if seg_row:
+                        audience_label = seg_row.name
+            elif data.audience_type == AudienceType.CSV_UPLOAD:
+                audience_label = "CSV Upload"
+        if not audience_label:
+            audience_label = "All Subscribers"
 
         async with get_session() as session:
             await session.execute(

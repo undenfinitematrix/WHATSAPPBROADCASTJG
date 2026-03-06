@@ -499,6 +499,15 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
     // save current data state as draft via API
     try {
       // convert state to API payload shape if needed
+      // Resolve the audience label to send to the backend
+      let audienceLabel = 'All Subscribers';
+      if (data.audience === 'segment' && data.segment) {
+        const seg = segments.find((s) => s.id === data.segment);
+        if (seg) audienceLabel = seg.label;
+      } else if (data.audience === 'csv') {
+        audienceLabel = 'CSV Upload';
+      }
+
       const payload = {
         campaign_name: data.campaignName,
         template_name: data.template,
@@ -510,6 +519,7 @@ const BroadcastWizard = ({ onNavigate, templates = [], segments = [], timezones 
             : null,
         timezone: data.timezone,
         audience_type: data.audience,
+        audience_label: audienceLabel,
         segment_id: data.segment || null,
         csv_file_id: csvUploadState.result?.file_id || null,
       };
