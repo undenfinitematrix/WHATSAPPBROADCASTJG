@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useBroadcasts, useBroadcastStats } from '../api-client';
+import { useBroadcasts } from '../api-client';
 
 // CSS import (production):
 // import './styles/broadcasts.css';
@@ -249,56 +249,35 @@ const EmptyState = ({ onCreateBroadcast }) => (
 // ============================================
 // Stats Row
 // ============================================
-const StatsRow = () => {
-  const { data: stats } = useBroadcastStats();
-
-  const fmtPct = (v) => v != null ? `${v}%` : '—';
-  const fmtChange = (v) => {
-    if (v == null) return null;
-    const dir = v >= 0 ? 'up' : 'down';
-    const arrow = v >= 0 ? '↑' : '↓';
-    return { dir, text: `${arrow} ${Math.abs(v)}%` };
-  };
-
-  const totalSent = stats?.total_sent ?? 0;
-  const totalChange = fmtChange(stats?.total_sent_change_pct);
-  const deliveryRate = fmtPct(stats?.avg_delivery_rate);
-  const deliveryChange = fmtChange(stats?.avg_delivery_rate_change);
-  const readRate = fmtPct(stats?.avg_read_rate);
-  const readChange = fmtChange(stats?.avg_read_rate_change);
-  const replyRate = fmtPct(stats?.avg_reply_rate);
-  const replyChange = fmtChange(stats?.avg_reply_rate_change);
-
-  return (
-    <div className="stats-row">
-      <div className="stat-card">
-        <div className="stat-card__label">Total Sent</div>
-        <div className="stat-card__value">{totalSent.toLocaleString()}</div>
-        {totalChange && <span className={`stat-card__change stat-card__change--${totalChange.dir}`}>{totalChange.text} vs last month</span>}
-      </div>
-      <div className="stat-card">
-        <div className="stat-card__label">Avg. Delivery Rate</div>
-        <div className="stat-card__value">{deliveryRate}</div>
-        {deliveryChange && <span className={`stat-card__change stat-card__change--${deliveryChange.dir}`}>{deliveryChange.text}</span>}
-      </div>
-      <div className="stat-card">
-        <div className="stat-card__label">
-          Avg. Read Rate
-          <span className="stat-card__info-icon" title="May undercount — users can disable read receipts in WhatsApp">
-            <Icons.InfoSmall />
-          </span>
-        </div>
-        <div className="stat-card__value">{readRate}</div>
-        {readChange && <span className={`stat-card__change stat-card__change--${readChange.dir}`}>{readChange.text}</span>}
-      </div>
-      <div className="stat-card">
-        <div className="stat-card__label">Avg. Reply Rate</div>
-        <div className="stat-card__value">{replyRate}</div>
-        {replyChange && <span className={`stat-card__change stat-card__change--${replyChange.dir}`}>{replyChange.text}</span>}
-      </div>
+const StatsRow = () => (
+  <div className="stats-row">
+    <div className="stat-card">
+      <div className="stat-card__label">Total Sent</div>
+      <div className="stat-card__value">12,847</div>
+      <span className="stat-card__change stat-card__change--up">↑ 23% vs last month</span>
     </div>
-  );
-};
+    <div className="stat-card">
+      <div className="stat-card__label">Avg. Delivery Rate</div>
+      <div className="stat-card__value">94.2%</div>
+      <span className="stat-card__change stat-card__change--up">↑ 1.8%</span>
+    </div>
+    <div className="stat-card">
+      <div className="stat-card__label">
+        Avg. Read Rate
+        <span className="stat-card__info-icon" title="May undercount — users can disable read receipts in WhatsApp">
+          <Icons.InfoSmall />
+        </span>
+      </div>
+      <div className="stat-card__value">67.8%</div>
+      <span className="stat-card__change stat-card__change--down">↓ 2.1%</span>
+    </div>
+    <div className="stat-card">
+      <div className="stat-card__label">Avg. Reply Rate</div>
+      <div className="stat-card__value">8.4%</div>
+      <span className="stat-card__change stat-card__change--up">↑ 0.6%</span>
+    </div>
+  </div>
+);
 
 // ============================================
 // Main Component
